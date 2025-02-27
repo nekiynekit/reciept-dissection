@@ -28,7 +28,7 @@ def draw_bbos(img, b, color, text):
     cv2.putText(img, text, pts[0][0][0], cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1, cv2.LINE_4)
 
 
-def update(dct, bbox, row_id, width, height):
+def update(dct, bbox, row_id, *args, **kwargs):
     pts = np.array([[int(bbox[f"x{i}"]), int(bbox[f"y{i}"])] for i in range(1, 5)])
     x1 = pts[:, 0].min()
     y1 = pts[:, 1].min()
@@ -40,7 +40,7 @@ def update(dct, bbox, row_id, width, height):
         x2 = max(x2, _x2)
         y1 = min(y1, _y1)
         y2 = max(y2, _y2)
-    dct[row_id] = (x1, y1, min(x2, width), min(y2, height))
+    dct[row_id] = (x1, y1, x2, y2)
 
 
 def show_dataset_bbox__format():
@@ -62,15 +62,15 @@ def show_dataset_bbox__format():
                 text = ""  # sample["category"]
                 if sample["category"] in {"menu.price", "menu.nm"}:
                     text = sample["category"]
-                    if word_sample["row_id"] not in row_id_to_clr.keys():
-                        row_id_to_clr[word_sample["row_id"]] = (
+                    if sample["group_id"] not in row_id_to_clr.keys():
+                        row_id_to_clr[sample["group_id"]] = (
                             random.randint(0, 255),
                             random.randint(0, 255),
                             random.randint(0, 255),
                         )
-                    color = row_id_to_clr[word_sample["row_id"]]
-                    dct = row_id_to_bbox_price if sample["category"] == "menu.price" else row_id_to_bbox_nm
-                    update(dct, bbox_data, word_sample["row_id"])
+                    color = row_id_to_clr[sample["group_id"]]
+                    dct = row_id_to_bbox_price  # if sample["category"] == "menu.price" else row_id_to_bbox_nm
+                    update(dct, bbox_data, sample["group_id"])
         for row_id in row_id_to_clr.keys():
             if row_id in row_id_to_bbox_nm.keys():
                 cv2.rectangle(
@@ -95,7 +95,7 @@ def cord_to_coco():
     ann_file_name = "/home/rmnv/dev/reciept-dissection/examples/true_train/annotations/train.json"
 
     result_ann = {
-        "categories": [{"id": 1, "name": "price"}, {"id": 2, "name": "nm"}],
+        "categories": [{"id": 1, "name": "position"}],
         "images": [],
         "annotations": [],
     }
@@ -116,10 +116,10 @@ def cord_to_coco():
                 bbox_data = word_sample["quad"]
 
                 if sample["category"] in {"menu.price", "menu.nm"}:
-                    if word_sample["row_id"] not in row_ids:
-                        row_ids.add(word_sample["row_id"])
-                    dct = row_id_to_bbox_price if sample["category"] == "menu.price" else row_id_to_bbox_nm
-                    update(dct, bbox_data, word_sample["row_id"], img.shape[1], img.shape[0])
+                    if sample["group_id"] not in row_ids:
+                        row_ids.add(sample["group_id"])
+                    dct = row_id_to_bbox_price  # if sample["category"] == "menu.price" else row_id_to_bbox_nm
+                    update(dct, bbox_data, sample["group_id"], img.shape[1], img.shape[0])
         result_ann["images"].append(
             {
                 "id": sample_idx + 1,
@@ -129,15 +129,15 @@ def cord_to_coco():
             }
         )
         for row_id in row_ids:
-            if row_id in row_id_to_bbox_nm.keys():
-                result_ann["annotations"].append(
-                    {
-                        "id": len(result_ann["annotations"]) + 1,
-                        "category_id": 2,
-                        "image_id": sample_idx + 1,
-                        "bbox": get_ltwh(row_id_to_bbox_nm[row_id]),
-                    }
-                )
+            # if row_id in row_id_to_bbox_nm.keys():
+            #     result_ann["annotations"].append(
+            #         {
+            #             "id": len(result_ann["annotations"]) + 1,
+            #             "category_id": 2,
+            #             "image_id": sample_idx + 1,
+            #             "bbox": get_ltwh(row_id_to_bbox_nm[row_id]),
+            #         }
+            #     )
             if row_id in row_id_to_bbox_price.keys():
                 result_ann["annotations"].append(
                     {
@@ -155,4 +155,5 @@ def cord_to_coco():
 
 
 if __name__ == "__main__":
+    # show_dataset_bbox__format()
     cord_to_coco()
