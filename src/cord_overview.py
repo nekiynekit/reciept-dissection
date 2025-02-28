@@ -95,7 +95,7 @@ def cord_to_coco():
     ann_file_name = "/home/rmnv/dev/reciept-dissection/examples/true_train/annotations/train.json"
 
     result_ann = {
-        "categories": [{"id": 1, "name": "position"}],
+        "categories": [{"id": 1, "name": "position"}, {"id": 2, "name": "price"}],
         "images": [],
         "annotations": [],
     }
@@ -118,7 +118,7 @@ def cord_to_coco():
                 if sample["category"] in {"menu.price", "menu.nm"}:
                     if sample["group_id"] not in row_ids:
                         row_ids.add(sample["group_id"])
-                    dct = row_id_to_bbox_price  # if sample["category"] == "menu.price" else row_id_to_bbox_nm
+                    dct = row_id_to_bbox_price if sample["category"] == "menu.price" else row_id_to_bbox_nm
                     update(dct, bbox_data, sample["group_id"], img.shape[1], img.shape[0])
         result_ann["images"].append(
             {
@@ -129,15 +129,15 @@ def cord_to_coco():
             }
         )
         for row_id in row_ids:
-            # if row_id in row_id_to_bbox_nm.keys():
-            #     result_ann["annotations"].append(
-            #         {
-            #             "id": len(result_ann["annotations"]) + 1,
-            #             "category_id": 2,
-            #             "image_id": sample_idx + 1,
-            #             "bbox": get_ltwh(row_id_to_bbox_nm[row_id]),
-            #         }
-            #     )
+            if row_id in row_id_to_bbox_nm.keys():
+                result_ann["annotations"].append(
+                    {
+                        "id": len(result_ann["annotations"]) + 1,
+                        "category_id": 2,
+                        "image_id": sample_idx + 1,
+                        "bbox": get_ltwh(row_id_to_bbox_nm[row_id]),
+                    }
+                )
             if row_id in row_id_to_bbox_price.keys():
                 result_ann["annotations"].append(
                     {
