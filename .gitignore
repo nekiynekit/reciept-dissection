@@ -1,3 +1,5 @@
 examples/
 env/
 *__pycache__*
+*.zip
+*.jpg

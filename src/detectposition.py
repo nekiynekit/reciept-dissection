@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 import PIL
 import PIL.Image
+import regex as re
 from scipy.optimize import linear_sum_assignment
 from transformers import pipeline
 from ultralytics import YOLO
@@ -68,21 +69,33 @@ def calculate_matching(yolo_outputs):
 
     p_indicies, n_indicies = linear_sum_assignment(cost_matrix)
     valid_output_pairs = [(price_boxes[p_i], nm_boxes[n_i]) for p_i, n_i in zip(p_indicies, n_indicies)]
+    valid_output_pairs.sort(key=lambda box: box[0][0])
     valid_output_pairs = [(p, n) for (p, n) in valid_output_pairs if metric(p, n) > 1]
 
     return valid_output_pairs
 
 
-def get_sec(img, xyxy):
+def get_sec(img, xyxy, pad=10):
     x1, y1, x2, y2 = xyxy
+    x1 = max(0, x1 - pad)
+    y1 = max(0, y1 - pad)
+    x2 = min(img.shape[1], x2 + pad)
+    y2 = min(img.shape[0], y2 + pad)
     return img[y1:y2, x1:x2]
 
 
 def idxs_to_text(ocr_model, img, valid_pairs):
     response_json = list()
+    sectors = list()
     for xyxy_p, xyxy_n in valid_pairs:
-        nm_text = ocr_model(PIL.Image.fromarray(get_sec(img, xyxy_n)))[0]["generated_text"]
-        p_text = ocr_model(PIL.Image.fromarray(get_sec(img, xyxy_p)))[0]["generated_text"]
+        nm_sec = PIL.Image.fromarray(get_sec(img, xyxy_n))
+        p_sec = PIL.Image.fromarray(get_sec(img, xyxy_p))
+        sectors.append(nm_sec)
+        sectors.append(p_sec)
+    model_out = ocr_model(sectors)
+    for i in range(0, len(model_out), 2):
+        nm_text = model_out[i][0]["generated_text"]
+        p_text = model_out[i + 1][0]["generated_text"]
         response_json.append([nm_text, p_text])
     return response_json
 
@@ -93,15 +106,40 @@ def draw_img(img, valid_pairs, boxes):
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         for box in [p, n]:
             x1, y1, x2, y2 = box
+            pad = 10
+            x1 = max(0, x1 - pad)
+            y1 = max(0, y1 - pad)
+            x2 = min(img.shape[1], x2 + pad)
+            y2 = min(img.shape[0], y2 + pad)
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
     cv2.imwrite("final.jpg", img)
 
 
+def filter_position(bill):
+    valid_bill = list()
+    for nm_text, p_text in bill:
+        if re.fullmatch(r"^[0123456789,.\ ]+$", p_text) is None:
+            continue
+        p_text = p_text.split(",")[0].split(".")[0]
+        try:
+            p_text = int(p_text)
+        except:
+            continue
+        valid_bill.append([nm_text, str(p_text)])
+    return valid_bill
+
+
 def cook_the_bill(yolo_model, ocr_model, img, yolo_conf=0.3):
+    print(f"RUNNING MODELS")
     yolo_output = yolo_model.predict(img, conf=yolo_conf, imgsz=1280, iou=0.3)[0].boxes
+    print(f"MATCHING PAIRS")
     valid_pairs = calculate_matching(yolo_output)
+    print(f"DRAW")
     draw_img(img, valid_pairs, yolo_output.xyxy)
+    print(f"PREPARING..")
     bill = idxs_to_text(ocr_model, img, valid_pairs)
+    print(f"CLEAR THE SUMS...")
+    bill = filter_position(bill)
     return bill
 
 

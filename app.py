@@ -1,5 +1,5 @@
-import asyncio
 import os
+from threading import Thread
 
 import cv2
 import numpy as np
@@ -23,32 +23,33 @@ yolo_model, ocr_model = None, None
 
 
 @app.get("/")
-async def start_page():
+def start_page():
     return "nns ready!"
 
 
 @app.get("/run_task")
-async def get_task(file_id):
+def get_task(file_id):
     task_id = 0 if len(task_pool) == 0 else max(task_pool.keys()) + 1
-    asyncio.create_task(run_pipeline(file_id, task_id))
+    task = Thread(target=run_pipeline, args=[file_id, task_id])
+    task.start()
+    task_pool[task_id] = [task, None]
     return str(task_id)
 
 
 @app.get("/get_bill")
-async def check_task(task_id):
+def check_task(task_id):
     global task_pool
     print(task_pool)
-    if int(task_id) in task_pool.keys():
+    if int(task_id) in task_pool.keys() and not task_pool[int(task_id)][0].isAlive():
         print("REMOVE FROM TASK_POOL")
-        response = task_pool[int(task_id)]
+        response = task_pool[int(task_id)][1]
         # task_pool.pop(int(task_id))
         return response
     return "not ready"
 
 
-async def run_pipeline(file_id, task_id):
+def run_pipeline(file_id, task_id):
     print(f"START PIPELINE, {file_id=}, {task_id=}")
-    await asyncio.sleep(0)
     global yolo_model, ocr_model, is_nns_ready, bot, token, task_pool
 
     # Initialize models
@@ -72,6 +73,6 @@ async def run_pipeline(file_id, task_id):
         print()
     print("----------------------------------------")
 
-    task_pool[task_id] = response
+    task_pool[task_id][1] = response
     print(task_pool)
     print(type(task_id), task_id)
