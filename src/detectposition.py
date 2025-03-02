@@ -60,17 +60,16 @@ def calculate_matching(yolo_outputs):
         l1, r1 = price_box[1], price_box[3]
         l2, r2 = nm_box[1], nm_box[3]
         intersection = max(0, min(r1, r2) - max(l1, l2))
-        print(f"between {[l1, r1]} and {[l2, r2]} metric is {intersection}")
         return intersection
 
     for i, pb in enumerate(price_boxes):
         for j, nb in enumerate(nm_boxes):
             cost_matrix[i, j] = -metric(pb, nb)
 
-    print("cost mat = ", cost_matrix)
     p_indicies, n_indicies = linear_sum_assignment(cost_matrix)
     valid_output_pairs = [(price_boxes[p_i], nm_boxes[n_i]) for p_i, n_i in zip(p_indicies, n_indicies)]
     valid_output_pairs = [(p, n) for (p, n) in valid_output_pairs if metric(p, n) > 1]
+
     return valid_output_pairs
 
 
@@ -82,7 +81,6 @@ def get_sec(img, xyxy):
 def idxs_to_text(ocr_model, img, valid_pairs):
     response_json = list()
     for xyxy_p, xyxy_n in valid_pairs:
-        print(xyxy_n, xyxy_p)
         nm_text = ocr_model(PIL.Image.fromarray(get_sec(img, xyxy_n)))[0]["generated_text"]
         p_text = ocr_model(PIL.Image.fromarray(get_sec(img, xyxy_p)))[0]["generated_text"]
         response_json.append([nm_text, p_text])
@@ -94,7 +92,6 @@ def draw_img(img, valid_pairs, boxes):
     for p, n in valid_pairs:
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
         for box in [p, n]:
-            print(box)
             x1, y1, x2, y2 = box
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
     cv2.imwrite("final.jpg", img)
