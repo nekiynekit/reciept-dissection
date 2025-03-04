@@ -1,4 +1,5 @@
 import os
+import time
 from threading import Thread
 
 import cv2
@@ -19,7 +20,7 @@ task_pool = dict()
 app = FastAPI()
 
 is_nns_ready = False
-yolo_model, ocr_model = None, None
+yolo_model, ocr_model, easyocr_model = None, None, None
 
 
 @app.get("/")
@@ -29,10 +30,16 @@ def start_page():
 
 @app.get("/run_task")
 def get_task(file_id):
+    global task_pool
     task_id = 0 if len(task_pool) == 0 else max(task_pool.keys()) + 1
     task = Thread(target=run_pipeline, args=[file_id, task_id])
     task.start()
-    task_pool[task_id] = [task, None]
+    task_pool[task_id] = [task, None, time.time()]
+    task_pool = {
+        task_key: [thr, resp, start_time]
+        for task_key, [thr, resp, start_time] in task_pool.items()
+        if time.time() - start_time < 300
+    }
     return str(task_id)
 
 
@@ -50,11 +57,11 @@ def check_task(task_id):
 
 def run_pipeline(file_id, task_id):
     print(f"START PIPELINE, {file_id=}, {task_id=}")
-    global yolo_model, ocr_model, is_nns_ready, bot, token, task_pool
+    global yolo_model, ocr_model, is_nns_ready, bot, token, task_pool, easyocr_model
 
     # Initialize models
     if not is_nns_ready:
-        yolo_model, ocr_model = prepare_modules()
+        yolo_model, ocr_model, easyocr_model = prepare_modules()
         is_nns_ready = True
 
     # Read and convert image
@@ -65,7 +72,7 @@ def run_pipeline(file_id, task_id):
 
     # Log image and process bill
     cv2.imwrite("image.jpg", img_np)
-    response = cook_the_bill(yolo_model, ocr_model, img_np)
+    response = cook_the_bill(yolo_model, ocr_model, easyocr_model, img_np)
 
     print("-----------------READY------------------")
     for n, p in response:

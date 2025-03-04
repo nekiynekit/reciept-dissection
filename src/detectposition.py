@@ -1,6 +1,7 @@
 import random
 
 import cv2
+import easyocr
 import numpy as np
 import PIL
 import PIL.Image
@@ -47,7 +48,8 @@ def play_with_fixed_image():
 def prepare_modules(weights="weights/yolov11nano-cord-divide.pt"):
     model = YOLO(weights)
     pipe = pipeline("image-to-text", model="raxtemur/trocr-base-ru")
-    return model, pipe
+    easyocr_model = easyocr.Reader(["en"])
+    return model, pipe, easyocr_model
 
 
 def calculate_matching(yolo_outputs):
@@ -69,33 +71,37 @@ def calculate_matching(yolo_outputs):
 
     p_indicies, n_indicies = linear_sum_assignment(cost_matrix)
     valid_output_pairs = [(price_boxes[p_i], nm_boxes[n_i]) for p_i, n_i in zip(p_indicies, n_indicies)]
-    valid_output_pairs.sort(key=lambda box: box[0][0])
+    valid_output_pairs = sorted(valid_output_pairs, key=lambda box: box[0][1])
     valid_output_pairs = [(p, n) for (p, n) in valid_output_pairs if metric(p, n) > 1]
 
     return valid_output_pairs
 
 
-def get_sec(img, xyxy, pad=10):
+def get_sec(img, xyxy, pad_x=0.99, pad_y=3):
     x1, y1, x2, y2 = xyxy
-    x1 = max(0, x1 - pad)
-    y1 = max(0, y1 - pad)
-    x2 = min(img.shape[1], x2 + pad)
-    y2 = min(img.shape[0], y2 + pad)
+    if pad_x < 1 and pad_x > 0:
+        pad_x = int((x2 - x1) / 2)
+    x1 = max(0, x1 - pad_x)
+    y1 = max(0, y1 - pad_y)
+    x2 = min(img.shape[1] - 1, x2 + pad_x)
+    y2 = min(img.shape[0] - 1, y2 + pad_y)
     return img[y1:y2, x1:x2]
 
 
-def idxs_to_text(ocr_model, img, valid_pairs):
+def idxs_to_text(ocr_model, easyocr_model, img, valid_pairs):
     response_json = list()
     sectors = list()
+    prices = list()
     for xyxy_p, xyxy_n in valid_pairs:
-        nm_sec = PIL.Image.fromarray(get_sec(img, xyxy_n))
-        p_sec = PIL.Image.fromarray(get_sec(img, xyxy_p))
+        nm_sec = PIL.Image.fromarray(cv2.cvtColor(get_sec(img, xyxy_n, pad_x=0, pad_y=0), cv2.COLOR_BGR2RGB))
+        price = easyocr_model.readtext(cv2.cvtColor(get_sec(img, xyxy_p), cv2.COLOR_BGR2RGB))[0][1]
         sectors.append(nm_sec)
-        sectors.append(p_sec)
+        prices.append(price)
     model_out = ocr_model(sectors)
-    for i in range(0, len(model_out), 2):
-        nm_text = model_out[i][0]["generated_text"]
-        p_text = model_out[i + 1][0]["generated_text"]
+
+    for nm_sample, price in zip(model_out, prices):
+        nm_text = nm_sample[0]["generated_text"]
+        p_text = price
         response_json.append([nm_text, p_text])
     return response_json
 
@@ -104,21 +110,22 @@ def draw_img(img, valid_pairs, boxes):
     img = img.copy()
     for p, n in valid_pairs:
         color = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        for box in [p, n]:
+        for box, pad_x, pad_y in zip([p, n], [0.99, 0], [3, 0]):
             x1, y1, x2, y2 = box
-            pad = 10
-            x1 = max(0, x1 - pad)
-            y1 = max(0, y1 - pad)
-            x2 = min(img.shape[1], x2 + pad)
-            y2 = min(img.shape[0], y2 + pad)
-            cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
+            if pad_x < 1 and pad_x > 0:
+                pad_x = int((x2 - x1) / 2)
+            x1 = max(0, x1 - pad_x)
+            y1 = max(0, y1 - pad_y)
+            x2 = min(img.shape[1] - 1, x2 + pad_x)
+            y2 = min(img.shape[0] - 1, y2 + pad_y)
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 1)
     cv2.imwrite("final.jpg", img)
 
 
 def filter_position(bill):
     valid_bill = list()
     for nm_text, p_text in bill:
-        if re.fullmatch(r"^[0123456789,.\ ]+$", p_text) is None:
+        if re.fullmatch(r"^[0123456789,. ]+$", p_text) is None:
             continue
         p_text = p_text.split(",")[0].split(".")[0]
         try:
@@ -129,7 +136,7 @@ def filter_position(bill):
     return valid_bill
 
 
-def cook_the_bill(yolo_model, ocr_model, img, yolo_conf=0.3):
+def cook_the_bill(yolo_model, ocr_model, easyocr_model, img, yolo_conf=0.3):
     print(f"RUNNING MODELS")
     yolo_output = yolo_model.predict(img, conf=yolo_conf, imgsz=1280, iou=0.3)[0].boxes
     print(f"MATCHING PAIRS")
@@ -137,7 +144,7 @@ def cook_the_bill(yolo_model, ocr_model, img, yolo_conf=0.3):
     print(f"DRAW")
     draw_img(img, valid_pairs, yolo_output.xyxy)
     print(f"PREPARING..")
-    bill = idxs_to_text(ocr_model, img, valid_pairs)
+    bill = idxs_to_text(ocr_model, easyocr_model, img, valid_pairs)
     print(f"CLEAR THE SUMS...")
     bill = filter_position(bill)
     return bill
