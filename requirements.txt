@@ -58,6 +58,7 @@ nvidia-nccl-cu12==2.20.5
 nvidia-nvjitlink-cu12==12.8.61
 nvidia-nvtx-cu12==12.1.105
 opencv-python==4.11.0.86
+opencv-python-headless==4.11.0.86
 packaging==24.2
 pandas==2.0.3
 pillow==10.4.0

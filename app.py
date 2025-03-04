@@ -8,6 +8,7 @@ import PIL
 import requests
 import telebot as tb
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from src.detectposition import cook_the_bill, prepare_modules
 
@@ -25,7 +26,7 @@ yolo_model, ocr_model, easyocr_model = None, None, None
 
 @app.get("/")
 def start_page():
-    return "nns ready!"
+    return RedirectResponse("https://www.youtube.com/watch?v=xVRVVgBnYEE")
 
 
 @app.get("/run_task")
@@ -51,8 +52,8 @@ def check_task(task_id):
         print("REMOVE FROM TASK_POOL")
         response = task_pool[int(task_id)][1]
         # task_pool.pop(int(task_id))
-        return response
-    return "not ready"
+        return JSONResponse(content=response, status_code=200)
+    return JSONResponse(content="Processing..", status_code=202)
 
 
 def run_pipeline(file_id, task_id):
@@ -83,3 +84,14 @@ def run_pipeline(file_id, task_id):
     task_pool[task_id][1] = response
     print(task_pool)
     print(type(task_id), task_id)
+
+# if you want to see image_id, just uncomment this part and python3 app.py :^)
+# @bot.message_handler(content_types=["photo"])
+# def photo_id(message):
+#     print(f"!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+#     photo = max(message.photo, key=lambda x: x.height)
+#     print(photo.file_id)
+
+
+# if __name__ == "__main__":
+#     bot.infinity_polling()
