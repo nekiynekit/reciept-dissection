@@ -125,7 +125,10 @@ def draw_img(img, valid_pairs, boxes):
 def filter_position(bill):
     valid_bill = list()
     for nm_text, p_text in bill:
-        if re.fullmatch(r"^[0123456789,. ]+$", p_text) is None:
+        print(f"Orig: {nm_text} price is {p_text}")
+        p_text = "".join(p_text.replace("Q", "0").replace("O", "0").split(" "))
+        if re.fullmatch(r"^[0123456789,. \t]+$", p_text) is None:
+            print(f"    -_- drop price [{p_text}], don't match")
             continue
         p_text = p_text.split(",")[0].split(".")[0]
         try:
