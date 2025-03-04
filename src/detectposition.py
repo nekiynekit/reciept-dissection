@@ -119,7 +119,7 @@ def draw_img(img, valid_pairs, boxes):
             x2 = min(img.shape[1] - 1, x2 + pad_x)
             y2 = min(img.shape[0] - 1, y2 + pad_y)
             cv2.rectangle(img, (x1, y1), (x2, y2), color, 1)
-    cv2.imwrite("final.jpg", img)
+    cv2.imwrite("final.jpg", cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
 
 
 def filter_position(bill):

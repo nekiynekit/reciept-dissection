@@ -18,6 +18,32 @@ YOLO from ultralytics trained on a CORD dataset. All scripts for visualize and p
 
 # Pipe example
 <p align="center">
-  <img src="your_relative_path_here" width="350" title="hover text">
-  <img src="your_relative_path_here_number_2_large_name" width="350" alt="accessibility text">
+  <img src="https://raw.githubusercontent.com/nekiynekit/reciept-dissection/main/media/final.jpg" title="Boxes render after processing">
 </p>
+
+### Output:
+```
+Белое золото 0,5л 
+ 3000
+
+Кувшин клюкв морса 
+ 1380
+
+Строганина муксун 5020 
+ 1040
+
+Строганина нельга 5020 
+ 1420
+
+Северный бот 
+ 3190
+
+Огурцы малосол смелом 
+ 590
+
+Грузии Селье 
+ 860
+
+Пельмени Порт-Артур 
+ 2980
+```
