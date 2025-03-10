@@ -39,7 +39,7 @@ def get_task(file_id):
     task_pool = {
         task_key: [thr, resp, start_time]
         for task_key, [thr, resp, start_time] in task_pool.items()
-        if time.time() - start_time < 300
+        if time.time() - start_time < 1500
     }
     return str(task_id)
 
