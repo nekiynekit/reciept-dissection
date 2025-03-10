@@ -15,4 +15,4 @@ WORKDIR /reciept-dissection
 
 EXPOSE 8000
 
-ENTRYPOINT gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker
+ENTRYPOINT gunicorn app:app -w 4 -k uvicorn.workers.UvicornWorker
