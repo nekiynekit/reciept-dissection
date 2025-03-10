@@ -23,6 +23,7 @@ fastapi-cli==0.0.7
 filelock==3.16.1
 fonttools==4.56.0
 fsspec==2025.2.0
+gunicorn==23.0.0
 h11==0.14.0
 httpcore==1.0.7
 httptools==0.6.4

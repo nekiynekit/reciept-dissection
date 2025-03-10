@@ -12,3 +12,7 @@ ARG TOKEN
 RUN export TOKEN=$TOKEN
 
 WORKDIR /reciept-dissection
+
+EXPOSE 8000
+
+ENTRYPOINT gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker
