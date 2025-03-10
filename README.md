@@ -2,9 +2,9 @@
 Repo with OCR reciept dissection node for tg-bot. Parsing document with YOLO, easyOCR and some regexp. For russian naming extraction there are `raxtemur/trocr-base-ru` model from huggingface.
 
 # Running with docker
-set `TOKEN` in .env file for your tg-bot for reading `file_id` from Telegram
 ```bash
-docker build -t reciept-dissection docker/
+docker build -t ocr docker/
+docker run --rm -it --net=host -p 8000:8000 -e TOKEN=... ocr
 ```
 
 # Pipeline scheme
